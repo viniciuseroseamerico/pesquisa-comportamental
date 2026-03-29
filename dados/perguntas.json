@@ -1,85 +1,146 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Avaliação - Perfil Comportamental</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; max-width: 700px; margin: auto; background: #F8FAFC; }
-        .pergunta { margin-bottom: 24px; padding: 20px; background: white; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .pergunta p { font-weight: 600; margin-bottom: 12px; }
-        label { display: block; margin: 8px 0; cursor: pointer; }
-        button { background: #0F172A; color: white; border: none; padding: 12px 24px; border-radius: 40px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 20px; }
-        h1 { text-align: center; margin-bottom: 20px; }
-        .info { text-align: center; margin-bottom: 20px; color: #64748B; }
-    </style>
-</head>
-<body>
-    <h1>🎯 Avaliação de Perfil</h1>
-    <div class="info" id="info"></div>
-    <form id="quizForm"><div id="perguntas"></div><button type="submit">Finalizar avaliação</button></form>
-
-    <script>
-        const supabaseUrl = "https://afoirnevaxsmdsjqijdx.supabase.co";
-        const supabaseKey = "sb_publishable_bw3-Nmv8Js7itGSg6k4btw_wY7wE960";
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-        const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get('token');
-        let perguntas = [];
-        let colaborador = null;
-
-        async function carregarColaborador() {
-            if (!token) { document.body.innerHTML = "<p style='text-align:center; margin-top:50px;'>🔒 Link inválido.</p>"; return; }
-            const { data } = await supabase.from('colaboradores').select('*').eq('token_convite', token);
-            if (data && data.length > 0) {
-                colaborador = data[0];
-                if (colaborador.status === 'respondido') { document.body.innerHTML = "<p style='text-align:center; margin-top:50px;'>✅ Avaliação já concluída.</p>"; return; }
-                document.getElementById("info").innerHTML = `<p>📱 Bem-vindo(a)! Responda as perguntas.</p>`;
-            } else { document.body.innerHTML = "<p style='text-align:center; margin-top:50px;'>🔒 Convite não encontrado.</p>"; }
-        }
-
-        async function carregarPerguntas() {
-            try {
-                const res = await fetch("dados/perguntas.json");
-                perguntas = await res.json();
-                const container = document.getElementById("perguntas");
-                container.innerHTML = "";
-                perguntas.forEach((p, i) => {
-                    container.innerHTML += `
-                        <div class="pergunta">
-                            <p>${i+1}. ${p.pergunta}</p>
-                            ${p.opcoes.map(op => `<label><input type="radio" name="q${i}" value="${op.tipo}" required> ${op.texto}</label>`).join("")}
-                        </div>
-                    `;
-                });
-            } catch (err) { document.getElementById("perguntas").innerHTML = "<p>Erro ao carregar perguntas.</p>"; }
-        }
-
-        document.getElementById("quizForm").addEventListener("submit", async function(e) {
-            e.preventDefault();
-            if (!colaborador) return;
-            let respostas = { executor: 0, administrador: 0, planejador: 0 };
-            perguntas.forEach((_, i) => { let resp = document.querySelector(`input[name="q${i}"]:checked`); if (resp) respostas[resp.value]++; });
-            let total = perguntas.length;
-            let percentuais = {
-                executor: Math.round((respostas.executor / total) * 100),
-                administrador: Math.round((respostas.administrador / total) * 100),
-                planejador: Math.round((respostas.planejador / total) * 100)
-            };
-            let perfil = Object.keys(respostas).reduce((a, b) => respostas[a] > respostas[b] ? a : b);
-            let nomePerfil = perfil === "executor" ? "Executor" : perfil === "administrador" ? "Administrador" : "Planejador";
-            await supabase.from('colaboradores').update({
-                status: 'respondido', perfil: nomePerfil,
-                executor_percent: percentuais.executor, administrador_percent: percentuais.administrador,
-                planejador_percent: percentuais.planejador, respondido_em: new Date()
-            }).eq('id', colaborador.id);
-            alert(`✅ Avaliação concluída!\n\nSeu perfil: ${nomePerfil}\n\n⚡ Executor: ${percentuais.executor}%\n📊 Administrador: ${percentuais.administrador}%\n🎯 Planejador: ${percentuais.planejador}%`);
-            window.location.href = "index.html";
-        });
-
-        carregarColaborador();
-        carregarPerguntas();
-    </script>
-</body>
-</html>
+[
+  {
+    "pergunta": "Quando surge um problema inesperado, sua primeira reação é:",
+    "opcoes": [
+      { "texto": "Agir imediatamente para resolver", "tipo": "executor" },
+      { "texto": "Analisar as causas antes de agir", "tipo": "administrador" },
+      { "texto": "Pensar nas consequências futuras", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "Em um trabalho em equipe, você costuma:",
+    "opcoes": [
+      { "texto": "Assumir a frente e executar", "tipo": "executor" },
+      { "texto": "Organizar tarefas e responsabilidades", "tipo": "administrador" },
+      { "texto": "Definir a estratégia e o objetivo final", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "O que mais te incomoda em um projeto?",
+    "opcoes": [
+      { "texto": "Lentidão e indecisão", "tipo": "executor" },
+      { "texto": "Falta de organização", "tipo": "administrador" },
+      { "texto": "Falta de visão de longo prazo", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "Ao receber uma nova tarefa, você prefere:",
+    "opcoes": [
+      { "texto": "Começar imediatamente", "tipo": "executor" },
+      { "texto": "Criar um plano detalhado", "tipo": "administrador" },
+      { "texto": "Entender como isso impacta o futuro", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "Como você toma decisões importantes?",
+    "opcoes": [
+      { "texto": "Com base na ação e no resultado rápido", "tipo": "executor" },
+      { "texto": "Com base em dados e regras", "tipo": "administrador" },
+      { "texto": "Com base em cenários e possibilidades", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "Qual dessas frases mais te representa?",
+    "opcoes": [
+      { "texto": "Feito é melhor que perfeito", "tipo": "executor" },
+      { "texto": "Processo bem feito evita problemas", "tipo": "administrador" },
+      { "texto": "Pensar antes evita retrabalho", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "Em situações de pressão, você tende a:",
+    "opcoes": [
+      { "texto": "Acelerar para concluir logo", "tipo": "executor" },
+      { "texto": "Seguir o método à risca", "tipo": "administrador" },
+      { "texto": "Reavaliar a estratégia", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "O que mais te motiva no trabalho?",
+    "opcoes": [
+      { "texto": "Resultados visíveis", "tipo": "executor" },
+      { "texto": "Organização e controle", "tipo": "administrador" },
+      { "texto": "Planejamento e crescimento futuro", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "Quando algo sai do planejado, você:",
+    "opcoes": [
+      { "texto": "Resolve no caminho", "tipo": "executor" },
+      { "texto": "Revê os procedimentos", "tipo": "administrador" },
+      { "texto": "Reformula o plano geral", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "Qual tipo de tarefa você prefere?",
+    "opcoes": [
+      { "texto": "Ação prática e direta", "tipo": "executor" },
+      { "texto": "Controle, registros e organização", "tipo": "administrador" },
+      { "texto": "Planejamento e análise estratégica", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "Você se sente mais produtivo quando:",
+    "opcoes": [
+      { "texto": "Está resolvendo problemas rapidamente", "tipo": "executor" },
+      { "texto": "Tudo está organizado e claro", "tipo": "administrador" },
+      { "texto": "Tem tempo para pensar e planejar", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "Em uma mudança repentina, você prefere:",
+    "opcoes": [
+      { "texto": "Se adaptar rapidamente", "tipo": "executor" },
+      { "texto": "Criar novas regras", "tipo": "administrador" },
+      { "texto": "Avaliar impactos futuros", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "Como você prefere receber feedback?",
+    "opcoes": [
+      { "texto": "Direto e rápido, sem enrolação", "tipo": "executor" },
+      { "texto": "Com dados e exemplos concretos", "tipo": "administrador" },
+      { "texto": "Com espaço para discutir melhorias futuras", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "Em reuniões, você costuma:",
+    "opcoes": [
+      { "texto": "Focar no que precisa ser feito agora", "tipo": "executor" },
+      { "texto": "Garantir que a pauta seja seguida", "tipo": "administrador" },
+      { "texto": "Propor novas ideias e direções", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "O que você mais valoriza em um líder?",
+    "opcoes": [
+      { "texto": "Decisões rápidas e claras", "tipo": "executor" },
+      { "texto": "Organização e previsibilidade", "tipo": "administrador" },
+      { "texto": "Visão de futuro e inovação", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "Quando você tem um prazo apertado, você:",
+    "opcoes": [
+      { "texto": "Foca no essencial e entrega rápido", "tipo": "executor" },
+      { "texto": "Organiza um plano para cumprir o prazo", "tipo": "administrador" },
+      { "texto": "Reavalia o escopo para manter qualidade", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "Como você lida com tarefas repetitivas?",
+    "opcoes": [
+      { "texto": "Faço rápido para acabar logo", "tipo": "executor" },
+      { "texto": "Crio um processo para otimizar", "tipo": "administrador" },
+      { "texto": "Penso em como automatizar", "tipo": "planejador" }
+    ]
+  },
+  {
+    "pergunta": "O que te frustra em um projeto?",
+    "opcoes": [
+      { "texto": "Falta de ação e decisões lentas", "tipo": "executor" },
+      { "texto": "Desorganização e caos", "tipo": "administrador" },
+      { "texto": "Falta de propósito e visão de futuro", "tipo": "planejador" }
+    ]
+  }
+]
