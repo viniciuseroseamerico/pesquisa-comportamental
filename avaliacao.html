@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Avaliação - Perfil Comportamental</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: system-ui; padding: 20px; max-width: 700px; margin: auto; background: #F8FAFC; }
         .pergunta { margin-bottom: 24px; padding: 20px; background: white; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -25,16 +24,19 @@
     </form>
 
     <script>
-        const supabaseUrl = "https://afoirnevaxsmdsjqijdx.supabase.co";
-        const supabaseKey = "sb_publishable_bw3-Nmv8Js7itGSg6k4btw_wY7wE960";
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        // ========== CONFIGURAÇÃO SUPABASE ==========
+        const SUPABASE_URL = "https://afoirnevaxsmdsjqijdx.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_bw3-Nmv8Js7itGSg6k4btw_wY7wE960";
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // ========== PEGAR TOKEN DA URL ==========
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
         
         let perguntas = [];
         let colaborador = null;
 
+        // ========== VALIDAR COLABORADOR ==========
         async function carregarColaborador() {
             if (!token) {
                 document.getElementById("info").innerHTML = "<p class='erro'>🔒 Link inválido. Solicite um novo convite.</p>";
@@ -42,7 +44,7 @@
                 return false;
             }
             
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('colaboradores')
                 .select('*')
                 .eq('token_convite', token);
@@ -64,6 +66,7 @@
             return true;
         }
 
+        // ========== CARREGAR PERGUNTAS ==========
         async function carregarPerguntas() {
             try {
                 const res = await fetch("dados/perguntas.json");
@@ -85,6 +88,7 @@
             }
         }
 
+        // ========== FINALIZAR QUIZ ==========
         document.getElementById("quizForm").addEventListener("submit", async function(e) {
             e.preventDefault();
             if (!colaborador) return;
@@ -117,7 +121,7 @@
             let perfil = Object.keys(respostas).reduce((a, b) => respostas[a] > respostas[b] ? a : b);
             let nomePerfil = perfil === "executor" ? "Executor" : perfil === "administrador" ? "Administrador" : "Planejador";
             
-            await supabase
+            await supabaseClient
                 .from('colaboradores')
                 .update({
                     status: 'respondido',
@@ -133,6 +137,7 @@
             window.location.href = "index.html";
         });
 
+        // ========== INICIAR ==========
         async function iniciar() {
             const ok = await carregarColaborador();
             if (ok) {
