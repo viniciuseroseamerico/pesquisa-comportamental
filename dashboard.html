@@ -31,8 +31,8 @@
             <div class="card"><div>⏳</div><h3 id="pendentes">0</h3><p>Pendentes</p></div>
         </div>
 
-        <button onclick="convidar()">📨 Convidar colaborador</button>
-        <button onclick="sair()">🚪 Sair</button>
+        <button id="btnConvidar">📨 Convidar colaborador</button>
+        <button id="btnSair">🚪 Sair</button>
 
         <div style="margin-top: 20px; background: white; border-radius: 20px; overflow-x: auto;">
             <table>
@@ -44,26 +44,25 @@
 
     <script>
         // ========== CONFIGURAÇÃO SUPABASE ==========
-        const supabaseUrl = "https://afoirnevaxsmdsjqijdx.supabase.co";
-        const supabaseKey = "sb_publishable_bw3-Nmv8Js7itGSg6k4btw_wY7wE960";
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const SUPABASE_URL = "https://afoirnevaxsmdsjqijdx.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_bw3-Nmv8Js7itGSg6k4btw_wY7wE960";
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let gestor = null;
 
         // ========== CARREGAR GESTOR ==========
-        async function carregar() {
-            gestor = JSON.parse(localStorage.getItem("gestorLogado"));
-            if (!gestor) { 
-                window.location.href = "index.html"; 
-                return; 
+        async function carregarGestor() {
+            const gestorSalvo = localStorage.getItem("gestorLogado");
+            if (!gestorSalvo) {
+                window.location.href = "index.html";
+                return null;
             }
-            document.getElementById("infoGestor").innerHTML = `<p>👤 ${gestor.nome} | 🏢 ${gestor.empresa}</p>`;
-            await listar();
+            return JSON.parse(gestorSalvo);
         }
 
         // ========== LISTAR COLABORADORES ==========
-        async function listar() {
-            console.log("Buscando colaboradores para gestor:", gestor.id);
+        async function listarColaboradores() {
+            if (!gestor || !gestor.id) return;
             
             const { data, error } = await supabase
                 .from('colaboradores')
@@ -71,12 +70,9 @@
                 .eq('gestor_id', gestor.id);
             
             if (error) {
-                console.error("Erro ao listar:", error);
-                document.getElementById("total").innerText = "Erro";
+                console.error("Erro:", error);
                 return;
             }
-            
-            console.log("Colaboradores encontrados:", data.length);
             
             const total = data.length;
             const respondidos = data.filter(c => c.status === 'respondido').length;
@@ -88,7 +84,7 @@
             
             const tbody = document.getElementById("tabela");
             if (data.length === 0) {
-                tbody.innerHTML = "<td><td colspan='4'>Nenhum colaborador convidado ainda.</td></tr>";
+                tbody.innerHTML = "<tr><td colspan='4'>Nenhum colaborador convidado ainda.</td></tr>";
                 return;
             }
             
@@ -103,7 +99,7 @@
         }
 
         // ========== CONVIDAR COLABORADOR ==========
-        async function convidar() {
+        async function convidarColaborador() {
             const telefone = prompt("Digite o telefone do colaborador (ex: 11999998888)");
             if (!telefone) return;
             
@@ -123,18 +119,30 @@
             } else {
                 const link = `https://viniciuseroseamerico.github.io/pesquisa-comportamental/avaliacao.html?token=${token}`;
                 prompt("📱 Copie este link e envie para o colaborador:", link);
-                await listar();
+                await listarColaboradores();
             }
         }
 
         // ========== SAIR ==========
-        function sair() { 
-            localStorage.removeItem("gestorLogado"); 
-            window.location.href = "index.html"; 
+        function sair() {
+            localStorage.removeItem("gestorLogado");
+            window.location.href = "index.html";
         }
 
         // ========== INICIAR ==========
-        carregar();
+        async function init() {
+            gestor = await carregarGestor();
+            if (!gestor) return;
+            
+            document.getElementById("infoGestor").innerHTML = `<p>👤 ${gestor.nome} | 🏢 ${gestor.empresa}</p>`;
+            
+            document.getElementById("btnConvidar").onclick = () => convidarColaborador();
+            document.getElementById("btnSair").onclick = () => sair();
+            
+            await listarColaboradores();
+        }
+        
+        init();
     </script>
 </body>
 </html>
