@@ -47,9 +47,17 @@
         
         let perguntas = [];
 
+        if (!empresaId) {
+            document.getElementById("status").innerHTML = "<div class='erro'>🔒 Link inválido. Solicite um novo link ao gestor.</div>";
+            document.getElementById("quizForm").style.display = "none";
+        }
+
         async function carregarPerguntas() {
             try {
-                const res = await fetch("https://viniciuseroseamerico.github.io/pesquisa-comportamental/dados/perguntas.json");
+                document.getElementById("status").innerHTML = "<div class='info'>⏳ Carregando perguntas...</div>";
+                
+                const res = await fetch('https://viniciuseroseamerico.github.io/pesquisa-comportamental/dados/perguntas.json');
+                if (!res.ok) throw new Error("HTTP " + res.status);
                 perguntas = await res.json();
                 
                 const container = document.getElementById("perguntas");
@@ -62,9 +70,9 @@
                         </div>
                     `;
                 });
-                document.getElementById("status").innerHTML = `<div class="info">✅ Responda as ${perguntas.length} perguntas abaixo:</div>`;
+                document.getElementById("status").innerHTML = `<div class='info'>✅ ${perguntas.length} perguntas carregadas. Responda abaixo:</div>`;
             } catch (err) {
-                document.getElementById("status").innerHTML = `<div class='erro'>❌ Erro ao carregar perguntas: ${err.message}</div>`;
+                document.getElementById("status").innerHTML = `<div class='erro'>❌ Erro ao carregar perguntas: ${err.message}<br><br>Verifique se o arquivo existe em:<br>https://viniciuseroseamerico.github.io/pesquisa-comportamental/dados/perguntas.json</div>`;
             }
         }
 
