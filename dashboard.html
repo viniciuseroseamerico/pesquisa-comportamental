@@ -19,9 +19,57 @@
         table { width: 100%; background: white; border-radius: 20px; overflow: hidden; border-collapse: collapse; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #E2E8F0; }
         th { background: #F8FAFC; }
-        .status-respondido { background: #D1FAE5; color: #059669; padding: 4px 12px; border-radius: 40px; font-size: 12px; display: inline-block; }
-        button { background: #0F172A; color: white; border: none; padding: 10px 20px; border-radius: 40px; cursor: pointer; }
-        .btn-sair { background: #EF4444; }
+        .btn-ver { background: #0F172A; color: white; border: none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px; }
+        .btn-sair { background: #EF4444; color: white; border: none; padding: 10px 20px; border-radius: 40px; cursor: pointer; margin-top: 20px; }
+
+        /* Modal do relatório */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            max-width: 500px;
+            width: 90%;
+            border-radius: 24px;
+            padding: 30px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .fechar-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .grafico-pizza {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            margin: 20px auto;
+            background: conic-gradient(
+                #0B5ED7 0% 0%,
+                #198754 0% 0%,
+                #FFC107 0% 0%
+            );
+        }
+        .legenda { display: flex; justify-content: center; gap: 20px; margin: 20px 0; flex-wrap: wrap; }
+        .legenda span { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; }
+        .recomendacoes { background: #F8FAFC; padding: 15px; border-radius: 16px; margin: 15px 0; }
+        .area-badge { display: inline-block; background: #E2E8F0; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin: 5px; cursor: pointer; }
+        .area-badge.ativo { background: #0F172A; color: white; }
     </style>
 </head>
 <body>
@@ -45,23 +93,35 @@
         <div style="background: white; border-radius: 20px; overflow-x: auto;">
             <h3 style="padding: 20px 0 0 20px;">📋 Colaboradores que já responderam</h3>
             <table>
-                <thead><tr><th>Nome</th><th>Cargo</th><th>Data</th><th>Perfil</th></tr></thead>
+                <thead><tr><th>Nome</th><th>Cargo</th><th>Data</th><th>Perfil</th><th>Ação</th></tr></thead>
                 <tbody id="tabela"></tbody>
             </table>
         </div>
 
-        <div style="margin-top: 20px; text-align: center;">
+        <div style="text-align: center;">
             <button id="btnSair" class="btn-sair">🚪 Sair</button>
         </div>
     </div>
 
+    <!-- Modal do Relatório -->
+    <div id="modalRelatorio" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📊 Relatório do Colaborador</h2>
+                <button class="fechar-modal" onclick="fecharModal()">&times;</button>
+            </div>
+            <div id="conteudoModal"></div>
+        </div>
+    </div>
+
     <script>
-        // CONFIGURAÇÃO SUPABASE (UMA ÚNICA VEZ)
+        // Configuração Supabase
         const supabaseUrl = "https://afoirnevaxsmdsjqijdx.supabase.co";
         const supabaseKey = "sb_publishable_bw3-Nmv8Js7itGSg6k4btw_wY7wE960";
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         let gestor = null;
+        let areaSelecionada = "escritorio";
 
         async function carregarGestor() {
             const gestorSalvo = localStorage.getItem("gestorLogado");
@@ -69,7 +129,6 @@
                 window.location.href = "index.html";
                 return;
             }
-            
             gestor = JSON.parse(gestorSalvo);
             document.getElementById("infoGestor").innerHTML = `<p>👤 ${gestor.nome} | 🏢 ${gestor.empresa}</p>`;
             
@@ -97,7 +156,7 @@
             
             const tbody = document.getElementById("tabela");
             if (respondidos.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='4'>Nenhum colaborador respondeu ainda. Compartilhe o link!</td></tr>";
+                tbody.innerHTML = "<tr><td colspan='5'>Nenhum colaborador respondeu ainda. Compartilhe o link!</td></tr>";
                 return;
             }
             
@@ -107,14 +166,147 @@
                     <td>${c.cargo || '-'}</td>
                     <td>${new Date(c.respondido_em || c.created_at).toLocaleDateString()}</td>
                     <td>${c.perfil || '-'}</td>
+                    <td><button class="btn-ver" onclick="verRelatorio(${c.id})">📄 Ver relatório</button></td>
                 </tr>
             `).join("");
+        }
+
+        // ========== RECOMENDAÇÕES POR PERFIL E ÁREA ==========
+        const recomendacoes = {
+            executor: {
+                resumo: "Perfil focado em ação, velocidade e resultados imediatos.",
+                fortes: ["Decisão rápida", "Foco em execução", "Energia para resolver problemas"],
+                atencao: ["Impulsividade", "Pouca atenção a detalhes", "Pode atropelar processos"],
+                recomendacoes: {
+                    varejo: ["Atendimento ao cliente", "Reposição de estoque", "Operações de caixa"],
+                    clinica: ["Triagem rápida", "Exames de rotina", "Atendimento emergencial"],
+                    distribuidora: ["Expedição", "Carregamento", "Controle de saída"],
+                    escritorio: ["Tarefas operacionais", "Execução de rotinas", "Suporte administrativo"]
+                }
+            },
+            administrador: {
+                resumo: "Perfil organizado, analítico e orientado a processos.",
+                fortes: ["Organização", "Controle", "Consistência nas entregas"],
+                atencao: ["Excesso de cautela", "Resistência a mudanças", "Lentidão em decisões"],
+                recomendacoes: {
+                    varejo: ["Controle de estoque", "Gestão de caixa", "Auditoria de processos"],
+                    clinica: ["Agendamento", "Prontuários", "Controle de insumos"],
+                    distribuidora: ["Controle de frota", "Inventário", "Gestão de rotas"],
+                    escritorio: ["Gestão de processos", "Controle de documentos", "Organização de fluxos"]
+                }
+            },
+            planejador: {
+                resumo: "Perfil estratégico, visionário e focado no longo prazo.",
+                fortes: ["Visão sistêmica", "Antecipação de riscos", "Planejamento"],
+                atencao: ["Excesso de análise", "Dificuldade em executar", "Distanciamento da operação"],
+                recomendacoes: {
+                    varejo: ["Layout da loja", "Campanhas promocionais", "Análise de tendências"],
+                    clinica: ["Gestão de agenda", "Protocolos clínicos", "Planejamento de recursos"],
+                    distribuidora: ["Otimização de rotas", "Planejamento logístico", "Expansão de frota"],
+                    escritorio: ["Planejamento estratégico", "Inovação", "Metas de longo prazo"]
+                }
+            }
+        };
+
+        function getRecomendacoesPorArea(perfil, area) {
+            const perfisMap = { "Executor": "executor", "Administrador": "administrador", "Planejador": "planejador" };
+            const perfilKey = perfisMap[perfil];
+            if (!perfilKey) return [];
+            return recomendacoes[perfilKey].recomendacoes[area] || recomendacoes[perfilKey].recomendacoes.escritorio;
+        }
+
+        function getInterpretacao(perfil) {
+            const perfisMap = { "Executor": "executor", "Administrador": "administrador", "Planejador": "planejador" };
+            const perfilKey = perfisMap[perfil];
+            if (!perfilKey) return null;
+            return recomendacoes[perfilKey];
+        }
+
+        async function verRelatorio(colaboradorId) {
+            const { data, error } = await supabaseClient
+                .from('colaboradores')
+                .select('*')
+                .eq('id', colaboradorId);
+            
+            if (error || !data || data.length === 0) return;
+            
+            const c = data[0];
+            const interpretacao = getInterpretacao(c.perfil);
+            
+            let html = `
+                <h3>👤 ${c.nome}</h3>
+                <p><strong>Cargo:</strong> ${c.cargo}</p>
+                <p><strong>Perfil identificado:</strong> ${c.perfil}</p>
+                <p><strong>Data:</strong> ${new Date(c.respondido_em).toLocaleDateString()}</p>
+                
+                <div style="margin: 20px 0;">
+                    <h4>📊 Distribuição do Perfil</h4>
+                    <div style="background: #E2E8F0; border-radius: 8px; margin: 5px 0; overflow: hidden;">
+                        <div style="background: #0B5ED7; width: ${c.executor_percent}%; height: 20px; color: white; font-size: 11px; padding-left: 5px;">⚡ Executor ${c.executor_percent}%</div>
+                        <div style="background: #198754; width: ${c.administrador_percent}%; height: 20px; color: white; font-size: 11px; padding-left: 5px;">📊 Administrador ${c.administrador_percent}%</div>
+                        <div style="background: #FFC107; width: ${c.planejador_percent}%; height: 20px; color: #333; font-size: 11px; padding-left: 5px;">🎯 Planejador ${c.planejador_percent}%</div>
+                    </div>
+                </div>
+            `;
+            
+            if (interpretacao) {
+                html += `
+                    <div class="recomendacoes">
+                        <h4>📝 Resumo do Perfil</h4>
+                        <p>${interpretacao.resumo}</p>
+                        
+                        <h4>💪 Pontos Fortes</h4>
+                        <ul>${interpretacao.fortes.map(f => `<li>${f}</li>`).join("")}</ul>
+                        
+                        <h4>⚠️ Pontos de Atenção</h4>
+                        <ul>${interpretacao.atencao.map(a => `<li>${a}</li>`).join("")}</ul>
+                    </div>
+                    
+                    <div style="margin: 20px 0;">
+                        <h4>🏢 Recomendações por Área</h4>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                            <button class="area-badge ${areaSelecionada === 'varejo' ? 'ativo' : ''}" onclick="selecionarArea('varejo')">🏬 Varejo</button>
+                            <button class="area-badge ${areaSelecionada === 'clinica' ? 'ativo' : ''}" onclick="selecionarArea('clinica')">🏥 Clínica</button>
+                            <button class="area-badge ${areaSelecionada === 'distribuidora' ? 'ativo' : ''}" onclick="selecionarArea('distribuidora')">🚚 Distribuidora</button>
+                            <button class="area-badge ${areaSelecionada === 'escritorio' ? 'ativo' : ''}" onclick="selecionarArea('escritorio')">🏢 Escritório</button>
+                        </div>
+                        <div id="recomendacoesArea">
+                            <ul>${getRecomendacoesPorArea(c.perfil, areaSelecionada).map(r => `<li>${r}</li>`).join("")}</ul>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            document.getElementById("conteudoModal").innerHTML = html;
+            document.getElementById("modalRelatorio").style.display = "flex";
+            
+            // Salvar colaborador atual para usar nas recomendações
+            window.colaboradorAtual = c;
+        }
+
+        function selecionarArea(area) {
+            areaSelecionada = area;
+            if (window.colaboradorAtual) {
+                const recomendacoesLista = getRecomendacoesPorArea(window.colaboradorAtual.perfil, area);
+                document.getElementById("recomendacoesArea").innerHTML = `<ul>${recomendacoesLista.map(r => `<li>${r}</li>`).join("")}</ul>`;
+                
+                // Atualizar estilo dos botões
+                document.querySelectorAll('.area-badge').forEach(btn => {
+                    btn.classList.remove('ativo');
+                    if (btn.innerText.includes(area === 'varejo' ? 'Varejo' : area === 'clinica' ? 'Clínica' : area === 'distribuidora' ? 'Distribuidora' : 'Escritório')) {
+                        btn.classList.add('ativo');
+                    }
+                });
+            }
+        }
+
+        function fecharModal() {
+            document.getElementById("modalRelatorio").style.display = "none";
         }
 
         function copiarLink() {
             const input = document.getElementById("linkEmpresa");
             input.select();
-            input.setSelectionRange(0, 99999);
             navigator.clipboard.writeText(input.value);
             alert("✅ Link copiado! Envie para sua equipe.");
         }
