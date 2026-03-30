@@ -11,7 +11,6 @@
         .header { background: #0F172A; color: white; padding: 20px; border-radius: 24px; margin-bottom: 30px; }
         .dashboard { max-width: 1200px; margin: 0 auto; }
         .link-card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 30px; text-align: center; border: 2px solid #E2E8F0; }
-        .link-card h3 { margin-bottom: 10px; }
         .link-card input { width: 100%; padding: 12px; border: 2px solid #E2E8F0; border-radius: 12px; margin: 10px 0; font-size: 14px; }
         .btn-copiar { background: #0F172A; color: white; border: none; padding: 10px 20px; border-radius: 40px; cursor: pointer; }
         .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
@@ -20,10 +19,9 @@
         table { width: 100%; background: white; border-radius: 20px; overflow: hidden; border-collapse: collapse; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #E2E8F0; }
         th { background: #F8FAFC; }
-        .status-pendente { background: #FEF3C7; color: #D97706; padding: 4px 12px; border-radius: 40px; font-size: 12px; display: inline-block; }
         .status-respondido { background: #D1FAE5; color: #059669; padding: 4px 12px; border-radius: 40px; font-size: 12px; display: inline-block; }
         button { background: #0F172A; color: white; border: none; padding: 10px 20px; border-radius: 40px; cursor: pointer; }
-        .btn-sair { background: #EF4444; margin-left: 10px; }
+        .btn-sair { background: #EF4444; }
     </style>
 </head>
 <body>
@@ -32,21 +30,19 @@
             <div id="infoGestor"></div>
         </div>
 
-        <!-- Card do Link da Empresa -->
         <div class="link-card">
             <h3>🔗 Link da sua empresa</h3>
-            <p>Compartilhe este link com sua equipe para eles responderem a avaliação:</p>
-            <input type="text" id="linkEmpresa" readonly value="Carregando...">
+            <p>Compartilhe este link com sua equipe:</p>
+            <input type="text" id="linkEmpresa" readonly>
             <button id="btnCopiar" class="btn-copiar">📋 Copiar link</button>
         </div>
 
         <div class="cards">
-            <div class="card"><div>👥</div><h3 id="total">0</h3><p>Colaboradores</p></div>
-            <div class="card"><div>✅</div><h3 id="responderam">0</h3><p>Responderam</p></div>
-            <div class="card"><div>⏳</div><h3 id="pendentes">0</h3><p>Pendentes</p></div>
+            <div class="card"><div>👥</div><h3 id="total">0</h3><p>Responderam</p></div>
+            <div class="card"><div>✅</div><h3 id="responderam">0</h3><p>Concluíram</p></div>
         </div>
 
-        <div style="margin-top: 20px; background: white; border-radius: 20px; overflow-x: auto;">
+        <div style="background: white; border-radius: 20px; overflow-x: auto;">
             <h3 style="padding: 20px 0 0 20px;">📋 Colaboradores que já responderam</h3>
             <table>
                 <thead><tr><th>Nome</th><th>Cargo</th><th>Data</th><th>Perfil</th></tr></thead>
@@ -60,82 +56,80 @@
     </div>
 
     <script>
-        // Configuração Supabase
-        const SUPABASE_URL = "https://afoirnevaxsmdsjqijdx.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_bw3-Nmv8Js7itGSg6k4btw_wY7wE960";
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        (function() {
+            // Configuração única do Supabase
+            const supabaseUrl = "https://afoirnevaxsmdsjqijdx.supabase.co";
+            const supabaseKey = "sb_publishable_bw3-Nmv8Js7itGSg6k4btw_wY7wE960";
+            const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        let gestor = null;
+            let gestor = null;
 
-        async function carregarGestor() {
-            const gestorSalvo = localStorage.getItem("gestorLogado");
-            if (!gestorSalvo) {
+            async function init() {
+                const gestorSalvo = localStorage.getItem("gestorLogado");
+                if (!gestorSalvo) {
+                    window.location.href = "index.html";
+                    return;
+                }
+                
+                gestor = JSON.parse(gestorSalvo);
+                document.getElementById("infoGestor").innerHTML = `<p>👤 ${gestor.nome} | 🏢 ${gestor.empresa}</p>`;
+                
+                const linkEmpresa = `https://viniciuseroseamerico.github.io/pesquisa-comportamental/avaliacao.html?empresa=${gestor.id}`;
+                document.getElementById("linkEmpresa").value = linkEmpresa;
+                
+                await carregarColaboradores();
+            }
+
+            async function carregarColaboradores() {
+                const { data, error } = await supabaseClient
+                    .from('colaboradores')
+                    .select('*')
+                    .eq('gestor_id', gestor.id);
+                
+                if (error) {
+                    console.error("Erro:", error);
+                    return;
+                }
+                
+                const respondidos = data.filter(c => c.status === 'respondido');
+                
+                document.getElementById("total").innerText = respondidos.length;
+                document.getElementById("responderam").innerText = respondidos.length;
+                
+                const tbody = document.getElementById("tabela");
+                if (respondidos.length === 0) {
+                    tbody.innerHTML = "<tr><td colspan='4'>Nenhum colaborador respondeu ainda. Compartilhe o link!</td></tr>";
+                    return;
+                }
+                
+                tbody.innerHTML = respondidos.map(c => `
+                    <tr>
+                        <td>${c.nome || '-'}</td>
+                        <td>${c.cargo || '-'}</td>
+                        <td>${new Date(c.respondido_em || c.created_at).toLocaleDateString()}</td>
+                        <td>${c.perfil || '-'}</td>
+                    </tr>
+                `).join("");
+            }
+
+            function copiarLink() {
+                const input = document.getElementById("linkEmpresa");
+                input.select();
+                input.setSelectionRange(0, 99999);
+                navigator.clipboard.writeText(input.value);
+                alert("✅ Link copiado! Envie para sua equipe.");
+            }
+
+            function sair() {
+                localStorage.removeItem("gestorLogado");
                 window.location.href = "index.html";
-                return;
             }
-            
-            gestor = JSON.parse(gestorSalvo);
-            document.getElementById("infoGestor").innerHTML = `<p>👤 ${gestor.nome} | 🏢 ${gestor.empresa}</p>`;
-            
-            // Gerar link da empresa
-            const linkEmpresa = `https://viniciuseroseamerico.github.io/pesquisa-comportamental/avaliacao.html?empresa=${gestor.id}`;
-            document.getElementById("linkEmpresa").value = linkEmpresa;
-            
-            await listarColaboradores();
-        }
 
-        async function listarColaboradores() {
-            const { data, error } = await supabase
-                .from('colaboradores')
-                .select('*')
-                .eq('gestor_id', gestor.id);
+            document.getElementById("btnCopiar").addEventListener("click", copiarLink);
+            document.getElementById("btnSair").addEventListener("click", sair);
             
-            if (error) {
-                console.error("Erro:", error);
-                return;
-            }
-            
-            const total = data.length;
-            const respondidos = data.filter(c => c.status === 'respondido').length;
-            
-            document.getElementById("total").innerText = total;
-            document.getElementById("responderam").innerText = respondidos;
-            document.getElementById("pendentes").innerText = total - respondidos;
-            
-            const tbody = document.getElementById("tabela");
-            if (respondidos === 0) {
-                tbody.innerHTML = "<tr><td colspan='4'>Nenhum colaborador respondeu ainda. Compartilhe o link!</td></tr>";
-                return;
-            }
-            
-            tbody.innerHTML = data.filter(c => c.status === 'respondido').map(c => `
-                <tr>
-                    <td>${c.nome || '-'}</td>
-                    <td>${c.cargo || '-'}</td>
-                    <td>${new Date(c.respondido_em || c.created_at).toLocaleDateString()}</td>
-                    <td>${c.perfil || '-'}</td>
-                </tr>
-            `).join("");
-        }
-
-        function copiarLink() {
-            const input = document.getElementById("linkEmpresa");
-            input.select();
-            input.setSelectionRange(0, 99999);
-            document.execCommand("copy");
-            alert("✅ Link copiado! Envie para sua equipe.");
-        }
-
-        function sair() {
-            localStorage.removeItem("gestorLogado");
-            window.location.href = "index.html";
-        }
-
-        // Configurar eventos
-        document.getElementById("btnCopiar").addEventListener("click", copiarLink);
-        document.getElementById("btnSair").addEventListener("click", sair);
-        
-        carregarGestor();
+            init();
+        })();
     </script>
 </body>
 </html>
