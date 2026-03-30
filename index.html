@@ -24,40 +24,17 @@
             padding: 40px;
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
         }
-        .logo {
-            width: 64px;
-            height: 64px;
-            background: linear-gradient(135deg, #3B82F6, #8B5CF6);
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 32px;
-        }
+        .logo { width: 64px; height: 64px; background: linear-gradient(135deg, #3B82F6, #8B5CF6); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 32px; }
         h1 { font-size: 28px; text-align: center; margin-bottom: 8px; }
         p { text-align: center; color: #64748B; margin-bottom: 32px; }
         .form-group { margin-bottom: 20px; }
         label { display: block; font-weight: 500; margin-bottom: 8px; }
-        input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #E2E8F0;
-            border-radius: 16px;
-            font-size: 15px;
-        }
-        button {
-            width: 100%;
-            padding: 14px;
-            background: #0F172A;
-            color: white;
-            border: none;
-            border-radius: 40px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-        }
+        input { width: 100%; padding: 12px 16px; border: 2px solid #E2E8F0; border-radius: 16px; font-size: 15px; }
+        button { width: 100%; padding: 14px; background: #0F172A; color: white; border: none; border-radius: 40px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .erro { color: #EF4444; text-align: center; margin-top: 16px; display: none; }
+        .link-esqueci { text-align: center; margin-top: 20px; }
+        .link-esqueci a { color: #64748B; font-size: 14px; text-decoration: none; }
+        .link-esqueci a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -78,6 +55,10 @@
             <button type="submit">Acessar plataforma →</button>
             <div id="erroMsg" class="erro"></div>
         </form>
+
+        <div class="link-esqueci">
+            <a href="#" id="btnEsqueciSenha">Esqueci minha senha</a>
+        </div>
     </div>
 
     <script>
@@ -115,6 +96,27 @@
             }));
 
             window.location.href = "dashboard.html";
+        });
+
+        // Esqueci minha senha
+        document.getElementById("btnEsqueciSenha").addEventListener("click", async function() {
+            const email = prompt("Digite seu e-mail cadastrado para receber uma nova senha:");
+            if (!email) return;
+            
+            const { data } = await supabaseClient.from('gestores').select('*').eq('email', email);
+            if (!data || data.length === 0) {
+                alert("❌ E-mail não encontrado. Entre em contato com o administrador.");
+                return;
+            }
+            
+            const novaSenha = Math.random().toString(36).substr(2, 8);
+            const { error } = await supabaseClient.from('gestores').update({ senha: novaSenha }).eq('email', email);
+            
+            if (error) {
+                alert("❌ Erro ao gerar nova senha. Tente novamente.");
+            } else {
+                alert(`✅ Nova senha gerada: ${novaSenha}\n\nAnote esta senha e use para fazer login.`);
+            }
         });
     </script>
 </body>
