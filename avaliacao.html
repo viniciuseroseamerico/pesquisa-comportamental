@@ -38,12 +38,11 @@
     <button id="btnFinalizar">Finalizar avaliação</button>
 
     <script>
-        // Configuração Supabase
+        // CONFIGURAÇÃO SUPABASE (UMA ÚNICA VEZ)
         const supabaseUrl = "https://afoirnevaxsmdsjqijdx.supabase.co";
         const supabaseKey = "sb_publishable_bw3-Nmv8Js7itGSg6k4btw_wY7wE960";
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // Pegar ID da empresa da URL
         const urlParams = new URLSearchParams(window.location.search);
         const empresaId = urlParams.get('empresa');
         
@@ -60,7 +59,7 @@
             
             try {
                 const res = await fetch('https://viniciuseroseamerico.github.io/pesquisa-comportamental/dados/perguntas.json');
-                if (!res.ok) throw new Error("Arquivo não encontrado (HTTP " + res.status + ")");
+                if (!res.ok) throw new Error("Arquivo não encontrado");
                 
                 perguntas = await res.json();
                 
@@ -92,7 +91,6 @@
                 return;
             }
             
-            // Verificar se todas foram respondidas
             let todasRespondidas = true;
             perguntas.forEach((_, i) => {
                 const resp = document.querySelector(`input[name="q${i}"]:checked`);
@@ -104,7 +102,6 @@
                 return;
             }
             
-            // Contar respostas
             let respostas = { executor: 0, administrador: 0, planejador: 0 };
             perguntas.forEach((_, i) => {
                 let resp = document.querySelector(`input[name="q${i}"]:checked`);
@@ -121,8 +118,7 @@
             let perfil = Object.keys(respostas).reduce((a, b) => respostas[a] > respostas[b] ? a : b);
             let nomePerfil = perfil === "executor" ? "Executor" : perfil === "administrador" ? "Administrador" : "Planejador";
             
-            // Salvar no Supabase
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('colaboradores')
                 .insert({
                     gestor_id: parseInt(empresaId),
